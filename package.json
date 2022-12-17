@@ -1,0 +1,27 @@
+{
+  "name": "@smile249/booba-bot",
+  "version": "1.0.0",
+  "description": "![bugbooba](https://user-images.githubusercontent.com/85846415/201528265-988595c2-b2a2-4626-a550-c4fc82ce0a4d.jpeg)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [],
+  "author": "Smile",
+  "license": "ISC",
+  "dependencies": {
+    "discord.js": "^14.6.0",
+    "dotenv": "^16.0.3",
+    "node-fetch": "^2.6.7",
+    "nodemon": "^2.0.20"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Smile249/booba-bot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Smile249/booba-bot/issues"
+  },
+  "homepage": "https://github.com/Smile249/booba-bot#readme"
+}

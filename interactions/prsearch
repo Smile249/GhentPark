@@ -20,14 +20,14 @@ function convert_to_float(a) {
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName("search")
+    .setName("prsearch")
     .setDMPermission(true)
-    .setDescription("Search for a parking place in Ghent with a query.")
+    .setDescription("Search for a public parking place/P+R in zone Ghent with a query.")
     .addStringOption((option) =>
       option
         .setName("query")
         .setDescription(
-          "Enter the name of the parking."
+          "Enter the name of the place."
         )
         .setRequired(true)
     ),
@@ -35,7 +35,7 @@ module.exports = {
     await interaction.deferReply();
 
     fetch(
-      "https://data.stad.gent/api/records/1.0/search/?dataset=bezetting-parkeergarages-real-time&q=" + interaction.options.getString("query") + "&lang=en&rows=1&sort=availablecapacity"
+      "https://data.stad.gent/api/records/1.0/search/?dataset=locaties-openbare-parkings-gent&q=" + interaction.options.getString("query") + "&lang=en&rows=1&sort="
     )
       .then((res) => res.json())
       .then((data) => {
@@ -50,57 +50,41 @@ module.exports = {
           });
         }
 
-        let openState;
-        if (data.records[0].fields.isopennow == 1){
-          openState = "✅"
-        }else{
-          openState = "❌"
-        }
-
         let freePark;
-        if (data.records[0].fields.freeparking == 1){
-          freePark = "✅"
-        }else{
-          freePark = "❌"
-        }
-
-        let OccupyVal;
-        switch (true){
-          case data.records[0].fields.occupation < 50:
-            OccupyVal = "#5bcc39" //green
+        switch(true){
+          case data.records[0].fields.naam == "Galveston":
+            freePark = "❌"
             break;
-          case data.records[0].fields.occupation > 50 && data.records[0].fields.occupation < 85:
-            OccupyVal = "#cc8339" //orange
+          case data.records[0].fields.naam == "Sint-Pietersstation":
+            freePark = "❌"
             break;
-          case data.records[0].fields.occupation > 85:
-            OccupyVal = "#cc3939" //red
+          case data.records[0].fields.naam == "Ledeberg":
+            freePark = "❌"
+            break;
+          case data.records[0].fields.naam == "Gent Sint-Pieters":
+            freePark = "🟧 Free bicycle parking, car parking paid"
+            break;
+          case data.records[0].fields.naam == "Dampoort":
+            freePark = "🟧 Free bicycle parking, car parking paid"
             break;
           default:
-            OccupyVal = "#FFFFFF"
+            freePark = "✅"
             break;
+          
         }
-
-        let timeOnly = data.records[0].fields.lastupdate.split("T")[1].split("+")[0]
 
         let parkingEmbed = new EmbedBuilder() 
         .setTitle("Results for: " + interaction.options.getString("query"))
-        .setURL(data.records[0].fields.urllinkaddress)
-        .setDescription(data.records[0].fields.operatorinformation + " | " + data.records[0].fields.name)
-        .setColor(OccupyVal)
+        .setURL(data.records[0].fields.url)
+        .setDescription(data.records[0].fields.type + " | " + data.records[0].fields.naam)
+        .setColor("#FFA500")
         .addFields({
-          name:"Is open?",
-          value: openState
-        })
-        .addFields({
-          name: "Amount of place:",
-          value: data.records[0].fields.availablecapacity  + " spot(s) left"
+          name: "Capacity:",
+          value: JSON.stringify(data.records[0].fields.capaciteit)
         })
         .addFields({
           name: "Free parking?",
           value: freePark
-        })
-        .setFooter({
-          text: "Last updated at: " + timeOnly
         })
 
         return interaction.editReply({ embeds: [parkingEmbed] });

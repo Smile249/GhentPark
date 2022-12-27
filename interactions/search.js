@@ -1,109 +1,60 @@
-const { SlashCommandBuilder, Client, Events } = require("@discordjs/builders");
-const fetch = require("node-fetch");
-const {
-  EmbedBuilder,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  ActivityType,
-} = require("discord.js");
-
-function convert_to_float(a) {
-         
-          // Type conversion
-          // of string to float
-          var floatValue = +(a);
-           
-          // Return float value
-          return floatValue;
-      }
+const { EmbedBuilder } = require('discord.js');
+const fetch = require('node-fetch');
 
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName("search")
-    .setDMPermission(true)
-    .setDescription("Search for a parking place in Ghent with a query.")
-    .addStringOption((option) =>
-      option
-        .setName("query")
-        .setDescription(
-          "Enter the name of the parking."
-        )
-        .setRequired(true)
-    ),
-  async execute(interaction, client) {
+  data: {
+    name: 'prsearch',
+    dmPermission: true,
+    description: 'Search for a public parking place/P+R in zone Ghent with a query.',
+    options: {
+      query: {
+        type: 'string',
+        description: 'Enter the name of the place.',
+        required: true,
+      },
+    },
+  },
+  async execute(interaction) {
     await interaction.deferReply();
 
-    fetch(
-      "https://data.stad.gent/api/records/1.0/search/?dataset=bezetting-parkeergarages-real-time&q=" + interaction.options.getString("query") + "&lang=en&rows=1&sort=availablecapacity"
-    )
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.error || data.errorMessage || data.records[0] == null) {
-          console.log("The following error occurred: " + data.errorMessage);
-          let errorEmbed = new EmbedBuilder()
-          .setTitle("Nothing was found!")
+    const query = interaction.options.get('query');
+    const apiUrl = `https://data.stad.gent/api/records/1.0/search/?dataset=locaties-openbare-parkings-gent&q=${query}&lang=en&rows=1&sort=`;
+    const data = await fetch(apiUrl).then((res) => res.json());
 
-          return interaction.editReply({
-            embeds: [errorEmbed],
-            ephemeral: true,
-          });
-        }
-
-        let openState;
-        if (data.records[0].fields.isopennow == 1){
-          openState = "✅"
-        }else{
-          openState = "❌"
-        }
-
-        let freePark;
-        if (data.records[0].fields.freeparking == 1){
-          freePark = "✅"
-        }else{
-          freePark = "❌"
-        }
-
-        let OccupyVal;
-        switch (true){
-          case data.records[0].fields.occupation < 50:
-            OccupyVal = "#5bcc39" //green
-            break;
-          case data.records[0].fields.occupation > 50 && data.records[0].fields.occupation < 85:
-            OccupyVal = "#cc8339" //orange
-            break;
-          case data.records[0].fields.occupation > 85:
-            OccupyVal = "#cc3939" //red
-            break;
-          default:
-            OccupyVal = "#FFFFFF"
-            break;
-        }
-
-        let timeOnly = data.records[0].fields.lastupdate.split("T")[1].split("+")[0]
-
-        let parkingEmbed = new EmbedBuilder() 
-        .setTitle("Results for: " + interaction.options.getString("query"))
-        .setURL(data.records[0].fields.urllinkaddress)
-        .setDescription(data.records[0].fields.operatorinformation + " | " + data.records[0].fields.name)
-        .setColor(OccupyVal)
-        .addFields({
-          name:"Is open?",
-          value: openState
-        })
-        .addFields({
-          name: "Amount of place:",
-          value: data.records[0].fields.availablecapacity  + " spot(s) left"
-        })
-        .addFields({
-          name: "Free parking?",
-          value: freePark
-        })
-        .setFooter({
-          text: "Last updated at: " + timeOnly
-        })
-
-        return interaction.editReply({ embeds: [parkingEmbed] });
+    if (data.error || data.errorMessage || !data.records[0]) {
+      console.log(`The following error occurred: ${data.errorMessage}`);
+      const errorEmbed = new EmbedBuilder()
+        .setTitle('Nothing was found!')
+        .setColor('#FF0000');
+      return interaction.editReply({
+        embeds: [errorEmbed],
+        ephemeral: true,
       });
+    }
+
+    const freeParking = data.records[0].fields.naam === 'Galveston' ||
+      data.records[0].fields.naam === 'Sint-Pietersstation' ||
+      data.records[0].fields.naam === 'Ledeberg'
+      ? '❌'
+      : data.records[0].fields.naam === 'Gent Sint-Pieters' ||
+        data.records[0].fields.naam === 'Dampoort'
+        ? '🟧 Free bicycle parking, car parking paid'
+        : '✅';
+
+    const parkingEmbed = new EmbedBuilder()
+      .setTitle(`Results for: ${query}`)
+      .setURL(data.records[0].fields.url)
+      .setDescription(`${data.records[0].fields.type} | ${data.records[0].fields.naam}`)
+      .setColor('#FFA500')
+      .addFields({
+        name: 'Capacity:',
+        value: JSON.stringify(data.records[0].fields.capaciteit),
+      })
+      .addFields({
+        name: 'Free parking?',
+        value: freeParking,
+      });
+
+    return interaction.editReply({ embeds: [parkingEmbed] });
   },
 };
